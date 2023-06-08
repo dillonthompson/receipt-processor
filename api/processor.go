@@ -45,7 +45,6 @@ func receiptProcessor(receipt models.Receipt) (uuid.UUID, error) {
 	Receipts.Mu.Lock()
 	defer Receipts.Mu.Unlock()
 	Receipts.Receipts[id] = points
-	fmt.Println(Receipts.Receipts)
 	return id, nil
 }
 
