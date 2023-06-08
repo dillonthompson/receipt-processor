@@ -5,13 +5,20 @@ import (
 	"math"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dillonthompson/receipt-processor/models"
 	"github.com/google/uuid"
 )
 
-var Receipts = map[uuid.UUID]int{}
+type ReceiptsStore struct {
+	Receipts map[uuid.UUID]int
+	Mu       sync.Mutex
+}
+
+var Receipts = ReceiptsStore{Receipts: make(map[uuid.UUID]int)}
+
 var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
 func receiptProcessor(receipt models.Receipt) (uuid.UUID, error) {
@@ -35,8 +42,10 @@ func receiptProcessor(receipt models.Receipt) (uuid.UUID, error) {
 	points += datePoints + timePoints
 
 	// store id and points
-	Receipts[id] = points
-	fmt.Println(Receipts)
+	Receipts.Mu.Lock()
+	defer Receipts.Mu.Unlock()
+	Receipts.Receipts[id] = points
+	fmt.Println(Receipts.Receipts)
 	return id, nil
 }
 
@@ -45,6 +54,9 @@ func calculateAlphaNumericPoints(retailer string) int {
 }
 
 func calculateTotalPoints(total float64) int {
+	if total <= 0 {
+		return 0
+	}
 	points := 0
 	if total == math.Trunc(total) {
 		points += 50
@@ -56,6 +68,9 @@ func calculateTotalPoints(total float64) int {
 }
 
 func calculateItemPoints(items []models.Item) int {
+	if len(items) == 0 {
+		return 0
+	}
 	points := 0
 	points += (len(items) / 2) * 5
 	for _, item := range items {

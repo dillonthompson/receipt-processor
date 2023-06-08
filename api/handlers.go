@@ -10,9 +10,6 @@ import (
 )
 
 func ReceiptHandler(c echo.Context) error {
-	if c.Request().Method != "POST" {
-		return c.String(http.StatusMethodNotAllowed, "Method not allowed")
-	}
 	receipt := models.Receipt{}
 	json.NewDecoder(c.Request().Body).Decode(&receipt)
 	id, err := receiptProcessor(receipt)
@@ -23,14 +20,17 @@ func ReceiptHandler(c echo.Context) error {
 }
 
 func PointsHandler(c echo.Context) error {
-	if c.Request().Method != "GET" {
-		return c.String(http.StatusMethodNotAllowed, "Method not allowed")
-	}
 	response := models.PointsResponse{}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
 	}
-	response.Points = Receipts[id]
+	Receipts.Mu.Lock()
+	defer Receipts.Mu.Unlock()
+	points, ok := Receipts.Receipts[id]
+	if !ok {
+		return c.String(http.StatusNotFound, "Receipt not found")
+	}
+	response.Points = points
 	return c.JSON(http.StatusOK, response)
 }
